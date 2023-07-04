@@ -10,4 +10,8 @@ urlpatterns = [
     path('H2S_2/config', views.H2S_2_config),
     path('PM10_1/config', views.PM10_1_config),
     path('PM10_2/config', views.PM10_2_config),
+    path('H2S_1/measurements', views.H2S_1_measurements),
+    path('H2S_2/measurements', views.H2S_2_measurements),
+    path('PM10_1/measurements', views.PM10_1_measurements),
+    path('PM10_2/measurements', views.PM10_2_measurements),
     ]

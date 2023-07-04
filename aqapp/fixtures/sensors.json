@@ -4,7 +4,7 @@
     "pk": 1,
     "fields": {
       "name": "H2S_1",
-      "pollutant": "H2S",
+      "pollutant": 1,
       "min_range": 0.0,
       "max_range": 100.0
     }
@@ -14,7 +14,7 @@
     "pk": 2,
     "fields": {
       "name": "H2S_2",
-      "pollutant": "H2S",
+      "pollutant": 1,
       "min_range": 0.0,
       "max_range": 100.0
     }
@@ -24,7 +24,7 @@
     "pk": 3,
     "fields": {
       "name": "PM10_1",
-      "pollutant": "PM10",
+      "pollutant": 2,
       "min_range": 0.0,
       "max_range": 100.0
     }
@@ -34,7 +34,7 @@
     "pk": 4,
     "fields": {
       "name": "PM10_2",
-      "pollutant": "PM10",
+      "pollutant": 2,
       "min_range": 0.0,
       "max_range": 100.0
     }

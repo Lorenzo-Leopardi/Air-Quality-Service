@@ -1,0 +1,16 @@
+[
+  {
+    "model": "aqapp.pollutant",
+    "pk": 1,
+    "fields": {
+      "name": "H2S"
+    }
+  },
+   {
+    "model": "aqapp.pollutant",
+    "pk": 2,
+    "fields": {
+      "name": "PM10"
+    }
+  }
+]
