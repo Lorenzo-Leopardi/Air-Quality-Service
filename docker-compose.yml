@@ -1,0 +1,47 @@
+services:
+  db:
+    container_name: mysql_db
+    image: mysql
+    restart: always
+    environment:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_DATABASE: 'db'
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: 'password'
+      MYSQL_ROOT_PASSWORD: 'password'
+      MYSQL_TCP_PORT: 3310
+    ports:
+      - '3310:3310'
+    expose:
+      - '3310'
+    volumes:
+      - my-db:/var/lib/mysql
+
+  datasource:
+    container_name: mock_data_source
+    build: ./datasource
+    restart: on-failure
+    command: bash -c "python manage.py makemigrations && python manage.py migrate && python manage.py loaddata sensors && python manage.py runserver 0.0.0.0:8080"
+    ports:
+      - "8080:8080"
+
+  airquality:
+    container_name: air_quality_monitor
+    build: ./airquality
+    restart: on-failure
+    command: bash -c "python manage.py makemigrations && python manage.py migrate && python manage.py loaddata pollutants && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - MYSQL_DATABASE=db
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - MYSQL_DATABASE_PORT=3310
+    volumes:
+      - /tmp/app/mysqld:/run/mysqld
+    depends_on:
+      - datasource
+      - db
+
+volumes:
+  my-db:
