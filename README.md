@@ -1,6 +1,3 @@
-# Air-Quality-Service
-Mock sensor and Data Analysis
-
 # Docker Compose Guide
 
 This guide explains how to run the Docker Compose YAML file to set up the project environment automatically. By following these instructions, you will have the project up and running in no time!
@@ -40,5 +37,15 @@ To run the project using Docker Compose, follow these steps:
     http://localhost:8000/airqualityAPI/docs
 
     This will take you to the project documentation, where you can learn more about the API endpoints and their usage.
+
+5. Use the provided script to configure the range of random data generation for each data source:
+
+    ```shell
+    ./sensor_config.sh <datasource_name> <pollutant_name> <min_range> <max_range>
+    ```
+
+    Datasource endpoints:
+    http://localhost:8000/sensors/<sensor_name>
+    http://localhost:8000/sensors/<sensor_name>/config
 
 ## Enjoy exploring the application and its features!
