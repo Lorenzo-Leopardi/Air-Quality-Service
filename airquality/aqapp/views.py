@@ -1,61 +1,165 @@
-import json
+from datetime import datetime, timedelta
 
-from django.http import HttpResponse
+from django.db.models import Avg
 from django.http import HttpResponseBadRequest
-from django.views.decorators.csrf import csrf_protect, csrf_exempt
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
-from rest_framework.decorators import api_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiExample, OpenApiParameter, inline_serializer
+from rest_framework import status, serializers
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Measurement
-from .models import Pollutant
-from .models import Sensor
+from .models import Pollutant, Sensor, Measurement
+from .serializers import SensorSerializer, MeasurementSerializer
 
 available_sensors = ['H2S_1', 'H2S_2', 'PM10_1', 'PM10_2']
-sensor_not_available = HttpResponseBadRequest('Sensor not available. Available sensors: '+', '.join(available_sensors))
+sensor_not_available = HttpResponseBadRequest(
+    'Sensor not available. Available sensors: ' + ', '.join(available_sensors))
 
 
-@api_view()
-def get_measurements(request, sensor_name):
-    sensor_obj = Sensor.objects.get(name=sensor_name)
-    if not sensor_obj:
-        return HttpResponseBadRequest('This sensor either doesn\'t exist or it can\'t be queried yet.')
+class PollutantAverageView(APIView):
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: inline_serializer(
+                name='Average',
+                fields={
+                    "pollutant": serializers.CharField(),
+                    "average": serializers.FloatField()
+                }
+            ),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description='This sensor either doesn\'t exist or it can\'t be queried yet.'),
+        },
+        parameters=[
+            OpenApiParameter(
+                name='time_range',
+                required=True,
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description='Number of hours to compute the average over',
+                examples=[
+                    OpenApiExample(
+                        name='Example value',
+                        value='8'
+                    ),
+                ],
+            ),
+            OpenApiParameter(
+                name='start_time',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description='Date and time to start the average calculation',
+                examples=[
+                    OpenApiExample(
+                        name='Example value',
+                        value='2023-07-21T23:45:59'
+                    ),
+                ],
+            ),
+        ],
+    )
+    def get(self, request, pollutant_name):
+        """
+        Returns the average of measurements for a pollutant.
+        If only the time_range parameter is provided, the average is computed by sliding.
+        If the start_time parameter is provided too, the average is computed by tumbling (back in time).
+        """
+        try:
+            pollutant_obj = Pollutant.objects.get(name=pollutant_name)
+        except Pollutant.DoesNotExist:
+            return Response('This pollutant doesn\'t exist.', status=status.HTTP_400_BAD_REQUEST)
 
-    queryset = Measurement.objects.filter(sensor=sensor_obj)
-    dictionaries = [obj.as_dict() for obj in queryset]
-    return HttpResponse(json.dumps({"data": dictionaries}, indent=4, sort_keys=True, default=str), content_type='application/json')
+        time_range = int(request.GET.get('time_range'))
+        if 'start_time' in request.GET:
+            start_time = datetime.strptime(request.GET.get('start_time'), "%Y-%m-%dT%H:%M:%S")
+            # Tumbling
+            queryset = Measurement.objects.filter(pollutant=pollutant_obj,
+                                                  created__range=[start_time - timedelta(hours=time_range), start_time])
+        else:
+            # Sliding
+            queryset = Measurement.objects.filter(pollutant=pollutant_obj,
+                                                  created__range=[datetime.now() - timedelta(hours=time_range),
+                                                                  datetime.now()])
+
+        average = queryset.aggregate(Avg("value"))['value__avg']
+        return Response({"pollutant": pollutant_name, "average": average})
 
 
-@csrf_protect
-@csrf_exempt
-@api_view(['POST'])
-@swagger_auto_schema(request_body=openapi.Schema(
-    type=openapi.TYPE_OBJECT,
-    required=['param1', 'param2'],  # Specify the required parameters here
-    properties={
-        'sensor_name': openapi.Schema(type=openapi.TYPE_STRING, description='sensor name'),
-        'pollutant_name': openapi.Schema(type=openapi.TYPE_STRING, description='pollutant name'),
-        'min_valid': openapi.Schema(type=openapi.TYPE_NUMBER, description='minimum valid value for a measurement'),
-        'max_valid': openapi.Schema(type=openapi.TYPE_NUMBER, description='maximum valid value for a measurement'),
-    }
-))
-def create_sensor(request):
-    if request.method == 'POST':
-        post_data = request.POST
-        name = post_data.get('sensor_name')
-        pollutant = post_data.get('pollutant_name')
-        min_valid = float(post_data.get('min_valid'))
-        max_valid = float(post_data.get('max_valid'))
-    else:
-        return HttpResponseBadRequest('Invalid request method.')
+class MeasurementsView(APIView):
+    @extend_schema(
+        responses={
+            status.HTTP_200_OK: MeasurementSerializer(many=True),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description='This sensor either doesn\'t exist or it can\'t be queried yet.'),
+        },
+        parameters=[
+            OpenApiParameter(
+                name='start_time',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description='Return measurements from this time onwards',
+                examples=[
+                    OpenApiExample(
+                        name='Example value',
+                        value='2023-07-05T17:32:28'
+                    ),
+                ],
+            ),
+            OpenApiParameter(
+                name='end_time',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description='Return measurements up until this time',
+                examples=[
+                    OpenApiExample(
+                        name='Example value',
+                        value='2023-07-21T23:45:59'
+                    ),
+                ],
+            ),
+        ],
+    )
+    def get(self, request, sensor_name):
+        """
+        Returns a list of measurements for this sensor.
+        If both time range parameters are provided, measurements can be filtered by time
+        """
+        try:
+            sensor_obj = Sensor.objects.get(name=sensor_name)
+        except Sensor.DoesNotExist:
+            return Response('This sensor either doesn\'t exist or it can\'t be queried yet.',
+                            status=status.HTTP_400_BAD_REQUEST)
 
-    if name not in available_sensors:
-        return HttpResponseBadRequest('This sensor name is not available.')
+        if 'start_time' in request.GET and 'end_time' in request.GET:
+            start_time = datetime.strptime(request.GET.get('start_time'), "%Y-%m-%dT%H:%M:%S")
+            end_time = datetime.strptime(request.GET.get('end_time'), "%Y-%m-%dT%H:%M:%S")
+            queryset = Measurement.objects.filter(sensor=sensor_obj, created__range=[start_time, end_time])
+        else:
+            queryset = Measurement.objects.filter(sensor=sensor_obj)
 
-    sensor_obj = Sensor(name=name,
-                        pollutant=Pollutant.objects.get(name=pollutant),
-                        min_valid=min_valid,
-                        max_valid=max_valid)
-    sensor_obj.save()
+        serializer = MeasurementSerializer(queryset, many=True)
+        return Response({"data": serializer.data})
 
-    return HttpResponse(json.dumps({"data": sensor_obj.as_dict()}), content_type='application/json')
+
+class SensorCreateView(APIView):
+    @extend_schema(
+        request=SensorSerializer,
+        responses={
+            status.HTTP_201_CREATED: OpenApiResponse(response=SensorSerializer),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(description='Bad request'),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+                description='This sensor name is not available. Available sensors: H2S_1, H2S_2, PM10_1, PM10_2'),
+        },
+    )
+    def post(self, request):
+        """Configure a sensor to be queried by the system, this is the only endpoint to add sensors"""
+        serializer = SensorSerializer(data=request.data)
+        if serializer.is_valid():
+            if serializer.validated_data.get('name') not in available_sensors:
+                return Response('This sensor name is not available. Available sensors: H2S_1, H2S_2, PM10_1, PM10_2',
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            sensor_obj = serializer.save()
+            response_data = SensorSerializer(sensor_obj).data
+            return Response({"data": response_data}, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -3,12 +3,14 @@ from django.http import JsonResponse
 from django.http import HttpResponseBadRequest
 from datetime import datetime
 import random
+import logging
 
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from rest_framework.decorators import api_view
 
 from .models import Sensor
 
+logger = logging.getLogger(__name__)
 
 def read_sensor(sensor_name):
     today = datetime.now().strftime("%Y%m%d,%H:%M:%S")
@@ -20,9 +22,16 @@ def read_sensor(sensor_name):
 
 def config_sensor(request, sensor_name):
     if request.method == 'POST':
+        print('______')
+        for key, value in request.POST.items():
+            print('Key: %s' % (key))
+            print('Value %s' % (value))
+        print('______')
         post_data = request.POST
-        min_range = float(post_data.get('min_range'))
-        max_range = float(post_data.get('max_range'))
+        print(post_data.get("min_range"))
+        print(post_data.get("max_range"))
+        min_range = float(post_data.get("min_range"))
+        max_range = float(post_data.get("max_range"))
 
         if min_range < 0 or max_range < 0:
             return HttpResponseBadRequest('Invalid parameters. Please provide positive values.')

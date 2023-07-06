@@ -15,11 +15,6 @@ class Sensor(models.Model):
     min_valid = models.FloatField(default=0)
     max_valid = models.FloatField(default=100)
 
-    def as_dict(self):
-        return {"name": self.name,
-                "pollutant": self.pollutant.name,
-                "min_valid": self.min_valid,
-                "max_valid": self.max_valid}
 
 
 class Measurement(models.Model):
@@ -27,11 +22,4 @@ class Measurement(models.Model):
     pollutant = models.ForeignKey(Pollutant, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True, editable=False)
     value = models.FloatField(null=True)
-    isValid = models.IntegerField(default=0)
-
-    def as_dict(self):
-        return {"created": self.created,
-                "pollutant": self.pollutant.name,
-                "sensor": self.sensor.name,
-                "value": self.value,
-                "isValid": self.isValid}
+    isValid = models.IntegerField(choices=[(0, '0'), (1, '1')], default=0)
