@@ -18,13 +18,13 @@ To run the project using Docker Compose, follow these steps:
 1. Clone the repository to your local machine:
 
    ```shell
-   git clone https://github.com/your-username/your-repo.git
+   git clone https://github.com/Lorenzo-Leopardi/Air-Quality-Service.git
    ```
 
 2. Navigate to the project directory:
 
     ```shell
-    cd your-repo
+    cd Air-Quality-Service
     ```
 
 3. Run the following command to start the project:
