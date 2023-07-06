@@ -37,7 +37,7 @@ To run the project using Docker Compose, follow these steps:
 4. Wait for the containers to start. 
     Once everything is up and running, you can access the application by opening the following URL in your web browser:
 
-    http://localhost:8000/airqualityAPI/docs/
+    http://localhost:8000/airqualityAPI/docs
 
     This will take you to the project documentation, where you can learn more about the API endpoints and their usage.
 
