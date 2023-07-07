@@ -47,11 +47,11 @@ class PollutantAverageView(APIView):
                 name='start_time',
                 type=OpenApiTypes.DATETIME,
                 location=OpenApiParameter.QUERY,
-                description='Date and time to start the average calculation',
+                description='Date and (o\'clock) time to start the average calculation',
                 examples=[
                     OpenApiExample(
                         name='Example value',
-                        value='2023-07-21T23:45:59'
+                        value='2023-07-21T23:00:00'
                     ),
                 ],
             ),
@@ -70,7 +70,8 @@ class PollutantAverageView(APIView):
 
         time_range = int(request.GET.get('time_range'))
         if 'start_time' in request.GET:
-            start_time = datetime.strptime(request.GET.get('start_time'), "%Y-%m-%dT%H:%M:%S")
+            start_time = datetime.strptime(request.GET.get('start_time'), "%Y-%m-%dT%H:%M:%S")\
+                                    .replace(minute=0, second=0, microsecond=0)
             # Tumbling
             queryset = Measurement.objects.filter(pollutant=pollutant_obj,
                                                   created__range=[start_time - timedelta(hours=time_range), start_time])
